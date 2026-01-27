@@ -1,0 +1,249 @@
+basePath: /api
+definitions:
+  tracking_internal_domain.Order:
+    properties:
+      created_at:
+        type: string
+      customer_id:
+        type: string
+      dest_lat:
+        type: number
+      dest_lng:
+        type: number
+      driver_id:
+        description: Puntero porque puede ser nulo al inicio
+        type: string
+      id:
+        type: string
+      origin_lat:
+        type: number
+      origin_lng:
+        type: number
+      status:
+        description: PENDING, ASSIGNED, etc.
+        type: string
+    type: object
+  tracking_internal_dto.CreateOrderRequest:
+    properties:
+      dest_lat:
+        type: number
+      dest_lng:
+        type: number
+      origin_lat:
+        type: number
+      origin_lng:
+        type: number
+    required:
+    - dest_lat
+    - dest_lng
+    - origin_lat
+    - origin_lng
+    type: object
+  tracking_internal_dto.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  tracking_internal_dto.UpdateLocationRequest:
+    properties:
+      lat:
+        type: number
+      lng:
+        type: number
+    required:
+    - lat
+    - lng
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Servidor de tracking de pedidos en tiempo real.
+  title: API de Logística Rafaela
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Devuelve un token JWT si las credenciales son válidas
+      parameters:
+      - description: Credenciales de usuario
+        in: body
+        name: credentials
+        required: true
+        schema:
+          $ref: '#/definitions/tracking_internal_dto.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Iniciar sesión
+      tags:
+      - Auth
+  /orders:
+    post:
+      consumes:
+      - application/json
+      description: Registra un pedido con origen y destino
+      parameters:
+      - description: Datos del pedido
+        in: body
+        name: order
+        required: true
+        schema:
+          $ref: '#/definitions/tracking_internal_dto.CreateOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/tracking_internal_domain.Order'
+      security:
+      - BearerAuth: []
+      summary: Crear un nuevo pedido
+      tags:
+      - Orders
+  /orders/{id}/accept:
+    patch:
+      description: Cambia el estado del pedido a ASSIGNED
+      parameters:
+      - description: ID del pedido
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Aceptar un pedido (Driver)
+      tags:
+      - Orders
+  /orders/{id}/complete:
+    patch:
+      description: Cambia el estado a 'DELIVERED' en Postgres y elimina la ubicación
+        de Redis
+      parameters:
+      - description: ID del pedido
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Finalizar entrega (Driver)
+      tags:
+      - Orders
+  /orders/{id}/location:
+    get:
+      description: Obtiene la última posición registrada en Redis del driver asignado
+        a la orden
+      parameters:
+      - description: ID del pedido
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              format: float64
+              type: number
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Consultar ubicación de un pedido (Cliente)
+      tags:
+      - Orders
+  /orders/history:
+    get:
+      description: Trae todos los pedidos DELIVERED del usuario
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/tracking_internal_domain.Order'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Ver historial de pedidos
+      tags:
+      - Orders
+  /orders/location:
+    post:
+      consumes:
+      - application/json
+      description: Guarda la ubicación actual en Redis
+      parameters:
+      - description: Coordenadas
+        in: body
+        name: location
+        required: true
+        schema:
+          $ref: '#/definitions/tracking_internal_dto.UpdateLocationRequest'
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Actualizar GPS (Driver)
+      tags:
+      - Orders
+  /orders/pending:
+    get:
+      description: Obtiene todos los pedidos con estado 'PENDING' disponibles para
+        ser aceptados
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/tracking_internal_domain.Order'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Listar pedidos pendientes
+      tags:
+      - Orders
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

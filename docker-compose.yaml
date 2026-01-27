@@ -3,7 +3,7 @@ services:
   db:
     image: postgis/postgis:latest # Imagen oficial con PostGIS
     ports:
-      - "5432:5432"
+      - "5433:5432"
     environment:
       POSTGRES_USER: user_logistics
       POSTGRES_PASSWORD: pass_logistics
