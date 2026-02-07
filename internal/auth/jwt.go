@@ -19,7 +19,6 @@ func GenerateToken(userID, role string) (string, error) {
 }
 func ValidateToken(tokenString string) (*jwt.Token, error) {
 	return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		// Validar que el método de firma sea el correcto
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("método de firma inesperado")
 		}

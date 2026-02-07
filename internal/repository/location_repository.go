@@ -21,7 +21,6 @@ func NewLocationRepository(r *redis.Client) *LocationRepository {
 const DriversKey = "drivers_locations"
 
 func (r *LocationRepository) SaveDriverLocation(ctx context.Context, driverID string, lat, lng float64) error {
-	// GEOADD es un "upsert": si el ID existe, pisa la ubicación. Perfecto para el tracking.
 	return r.redis.GeoAdd(ctx, DriversKey, &redis.GeoLocation{
 		Name:      driverID,
 		Latitude:  lat,
@@ -30,7 +29,7 @@ func (r *LocationRepository) SaveDriverLocation(ctx context.Context, driverID st
 }
 
 func (r *LocationRepository) UpdateDriverLocation(ctx context.Context, driverID string, lat, lng float64) error {
-	// Guardamos la ubicación del driver en una llave llamada "drivers_locations"
+	
 	return r.redis.GeoAdd(ctx, "drivers_locations", &redis.GeoLocation{
 		Name:      driverID,
 		Latitude:  lat,
@@ -38,7 +37,6 @@ func (r *LocationRepository) UpdateDriverLocation(ctx context.Context, driverID 
 	}).Err()
 }
 func (r *LocationRepository) GetDriverLocation(ctx context.Context, driverID string) (*redis.GeoLocation, error) {
-	// Buscamos la posición del driver en la llave donde estamos guardando todo
 	pos, err := r.redis.GeoPos(ctx, "drivers_locations", driverID).Result()
 	if err != nil || len(pos) == 0 || pos[0] == nil {
 		return nil, errors.New("ubicación no encontrada para este repartidor")
@@ -52,6 +50,6 @@ func (r *LocationRepository) GetDriverLocation(ctx context.Context, driverID str
 }
 
 func (r *LocationRepository) DeleteDriverLocation(ctx context.Context, driverID string) error {
-	// Limpiamos Redis cuando el driver termina el pedido
+	
 	return r.redis.ZRem(ctx, DriversKey, driverID).Err()
 }

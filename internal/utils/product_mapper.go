@@ -5,7 +5,7 @@ import (
 	"tracking/internal/dto"
 )
 
-// 1. DTO Request -> Domain (Para crear o actualizar)
+// DTO Request -> Domain 
 func ToProductDomain(req dto.UpsertProductRequest) domain.Product {
 	return domain.Product{
 		Name:        req.Name,
@@ -14,7 +14,7 @@ func ToProductDomain(req dto.UpsertProductRequest) domain.Product {
 	}
 }
 
-// 2. Domain -> DTO Response (Para devolver un producto individual)
+// Domain -> DTO Response 
 func ToProductResponse(p domain.Product) dto.ProductResponse {
 	return dto.ProductResponse{
 		ID:          p.ID,
@@ -24,7 +24,7 @@ func ToProductResponse(p domain.Product) dto.ProductResponse {
 	}
 }
 
-// 3. Slice Domain -> Slice DTO Response (Para el listado de productos)
+// Slice Domain -> Slice DTO Response 
 func SliceProductDomainToProductResponseListDto(products []domain.Product) []dto.ProductResponse {
 	if products == nil {
 		return []dto.ProductResponse{}

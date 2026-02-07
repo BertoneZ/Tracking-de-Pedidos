@@ -22,6 +22,6 @@ func (s *ProductService) GetProductsService(ctx context.Context) ([]dto.ProductR
 	if err != nil {
 		return nil, err
 	}
-	// Usamos el mapper que creamos antes
+	
 	return utils.SliceProductDomainToProductResponseListDto(products), nil
 }

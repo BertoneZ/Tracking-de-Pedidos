@@ -38,7 +38,7 @@ func SliceOrderDomainToOrderResponseListDto(orders []domain.Order) []dto.OrderRe
 	return res
 }
 
-// ToOrderDomain crea el objeto inicial con los datos que YA tenemos
+
 func ToOrderDomain(req dto.CreateOrderRequest, customerID string) *domain.Order {
 	var items []domain.OrderItem
 	for _, item := range req.Items {

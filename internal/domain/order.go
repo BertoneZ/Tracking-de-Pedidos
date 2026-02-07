@@ -12,9 +12,9 @@ type OrderItem struct {
 type Order struct {
     ID                 string    `json:"id"`
     CustomerID         string    `json:"customer_id"`
-    CustomerName       string    `json:"customer_name"` // Agregá esto
+    CustomerName       string    `json:"customer_name"` 
     DriverID           string    `json:"driver_id"`
-    DriverName         string    `json:"driver_name"`   // Agregá esto
+    DriverName         string    `json:"driver_name"`   
     Status             string    `json:"status"`
     OriginLat          float64   `json:"origin_lat"`
     OriginLng          float64   `json:"origin_lng"`

@@ -29,7 +29,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 	var body struct {
         Email    string `json:"email" binding:"required,email"`
         Password string `json:"password" binding:"required,min=6"`
-        FullName string `json:"full_name" binding:"required"` // <--- Agregamos el nombre
+        FullName string `json:"full_name" binding:"required"` 
         Role     string `json:"role" binding:"required,oneof=driver customer"`
     }
 
@@ -66,7 +66,6 @@ func (h *UserHandler) Login(c *gin.Context) {
         return
     }
 
-    // El Service debe recibir solo 3 argumentos: context, email y password
     user, token, err := h.svc.Login(c.Request.Context(), body.Email, body.Password)
     if err != nil {
         c.JSON(http.StatusUnauthorized, gin.H{"error": "Credenciales inválidas"})
@@ -78,7 +77,7 @@ func (h *UserHandler) Login(c *gin.Context) {
         "user":  gin.H{
             "id":        user.ID,
             "email":     user.Email,
-            "full_name": user.FullName, // <--- Esto es lo que faltaba
+            "full_name": user.FullName, 
             "role":      user.Role,
         },
     })

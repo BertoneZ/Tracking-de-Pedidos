@@ -13,7 +13,7 @@ type LocationServiceInterface interface {
 
 type LocationService struct {
 	repo      repository.LocationRepositoryInterface
-	orderRepo repository.OrderRepositoryInterface // Inyectamos órdenes para validar estado
+	orderRepo repository.OrderRepositoryInterface 
 }
 
 func NewLocationService(repo repository.LocationRepositoryInterface, orderRepo repository.OrderRepositoryInterface) *LocationService {
@@ -24,13 +24,12 @@ func NewLocationService(repo repository.LocationRepositoryInterface, orderRepo r
 }
 
 func (s *LocationService) UpdateLocation(ctx context.Context, driverID string, lat, lng float64) error {
-	// 1. Validación de Coordenadas (Regla técnica)
+	
 	if lat < -90 || lat > 90 || lng < -180 || lng > 180 {
 		return errors.New("coordenadas geográficas inválidas")
 	}
 
-	// 2. Validación de Negocio: ¿El driver tiene una orden activa?
-	// Evitamos que drivers que no están trabajando saturen Redis con pings de GPS.
+	
 	active, err := s.orderRepo.HasActiveOrder(ctx, driverID)
 	if err != nil {
 		return err
@@ -40,11 +39,11 @@ func (s *LocationService) UpdateLocation(ctx context.Context, driverID string, l
 		return errors.New("no puedes reportar ubicación sin un pedido asignado")
 	}
 
-	// 3. Persistencia
+	
 	return s.repo.SaveDriverLocation(ctx, driverID, lat, lng)
 }
 
 func (s *LocationService) GetLocation(ctx context.Context, driverID string) (*redis.GeoLocation, error) {
-	// Aquí se podría agregar lógica de "expiración" si la data es muy vieja
+	
 	return s.repo.GetDriverLocation(ctx, driverID)
 }

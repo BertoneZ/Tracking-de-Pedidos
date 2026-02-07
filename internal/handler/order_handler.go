@@ -137,35 +137,31 @@ func (h *OrderHandler) UpdateLocation(c *gin.Context) {
 // @Router /orders/{id}/location [get]
 func (h *OrderHandler) GetOrderLocation(c *gin.Context) {
     orderID := c.Param("id")
-    userID := c.MustGet("user_id").(string) // ID del usuario logueado
+    userID := c.MustGet("user_id").(string) 
 
-    // 1. Buscamos la orden
     order, err := h.svc.GetOrderById(c.Request.Context(), orderID)
     if err != nil {
         c.JSON(http.StatusNotFound, gin.H{"error": "Pedido no encontrado"})
         return
     }
 
-    // 2. SEGURIDAD: Solo el cliente que creó la orden puede trackearla
     if order.CustomerID != userID {
         c.JSON(http.StatusForbidden, gin.H{"error": "No tienes permiso para trackear este pedido"})
         return
     }
 
-    // 3. Verificamos si ya tiene un repartidor
     if order.DriverID == "" {
         c.JSON(http.StatusBadRequest, gin.H{"error": "El pedido aún no tiene un repartidor asignado"})
         return
     }
 
-    // 4. Buscamos la ubicación en Redis
+    //  Buscamos la ubicación en Redis
     location, err := h.locationSvc.GetLocation(c.Request.Context(), order.DriverID)
     if err != nil {
         c.JSON(http.StatusNotFound, gin.H{"error": "Ubicación no disponible en tiempo real"})
         return
     }
 
-    // 5. LIMPIEZA: Devolvemos solo lat y lng, nada de GeoHash o Dist
     c.JSON(http.StatusOK, gin.H{
         "lat": location.Latitude,
         "lng": location.Longitude,

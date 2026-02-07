@@ -29,7 +29,6 @@ func NewOrderRepository(db *pgxpool.Pool, rdb *redis.Client) *OrderRepository {
 }
 
 func (r *OrderRepository) GetPending(ctx context.Context) ([]domain.Order, error) {
-	// 1. Traer la cabecera de las órdenes con el nombre del cliente
 	query := `
     SELECT o.id, o.customer_id, u.full_name, o.status, 
            o.origin_lat, o.origin_lng, o.dest_lat, o.dest_lng, 
@@ -57,7 +56,6 @@ func (r *OrderRepository) GetPending(ctx context.Context) ([]domain.Order, error
 			return nil, err
 		}
 
-		// 2. Por cada orden, buscar sus productos (Ítems)
 		itemQuery := `
             SELECT oi.product_id, p.name, oi.quantity, oi.price_at_time
             FROM order_items oi
@@ -69,7 +67,6 @@ func (r *OrderRepository) GetPending(ctx context.Context) ([]domain.Order, error
 			return nil, err
 		}
 
-		// Inicializamos el slice para que no devuelva null en el JSON
 		o.Items = []domain.OrderItem{}
 
 		for itemRows.Next() {
@@ -97,14 +94,12 @@ func (r *OrderRepository) AcceptOrder(ctx context.Context, orderID string, drive
 		return err
 	}
 
-	// Si ninguna fila fue afectada, es porque el pedido ya no estaba PENDING
 	if result.RowsAffected() == 0 {
 		return utils.ErrOrderNotAvailable
 	}
 	return nil
 }
 func (r *OrderRepository) GetOrderById(ctx context.Context, id string) (domain.Order, error) {
-	// 1. Buscamos la cabecera de la orden
 	queryOrder := `
 		SELECT 
 			o.id, o.customer_id, u_c.full_name,
@@ -127,7 +122,6 @@ func (r *OrderRepository) GetOrderById(ctx context.Context, id string) (domain.O
 		return o, err
 	}
 
-	// 2. Buscamos los productos de esta orden (JOIN con products para el nombre)
 	queryItems := `
 		SELECT oi.product_id, p.name, oi.quantity, oi.price_at_time
 		FROM order_items oi
@@ -142,7 +136,6 @@ func (r *OrderRepository) GetOrderById(ctx context.Context, id string) (domain.O
 
 	for rows.Next() {
 		var item domain.OrderItem
-		// Necesitás agregar el campo ProductName al struct OrderItem en domain si querés verlo
 		if err := rows.Scan(&item.ProductID, &item.ProductName, &item.Quantity, &item.PriceAtTime); err != nil {
 			return o, err
 		}
@@ -153,7 +146,6 @@ func (r *OrderRepository) GetOrderById(ctx context.Context, id string) (domain.O
 }
 
 func (r *OrderRepository) CompleteOrder(ctx context.Context, orderID string, driverID string) error {
-	// 1. Actualizamos Postgres
 	query := `UPDATE orders SET status = 'DELIVERED' 
 	          WHERE id = $1 AND driver_id = $2 AND status = 'ASSIGNED'`
 
@@ -166,14 +158,12 @@ func (r *OrderRepository) CompleteOrder(ctx context.Context, orderID string, dri
 		return errors.New("no se pudo completar el pedido (revisar ID o estado)")
 	}
 
-	// 2. Limpiamos Redis para este driver (opcional, pero recomendado)
 	// Se usa ZREM porque GEOADD crea un Sorted Set internamente
 	r.rdb.ZRem(ctx, "drivers_locations", driverID)
 
 	return nil
 }
 func (r *OrderRepository) GetHistory(ctx context.Context, userID string) ([]domain.Order, error) {
-    // 1. Agregamos el JOIN y las columnas que faltaban (nombre, precio, dirección)
     query := `
         SELECT 
             o.id, o.customer_id, u.full_name, o.status, 
@@ -193,7 +183,6 @@ func (r *OrderRepository) GetHistory(ctx context.Context, userID string) ([]doma
     var orders []domain.Order
     for rows.Next() {
         var o domain.Order
-        // 2. Escaneamos los nuevos campos
         err := rows.Scan(
             &o.ID, &o.CustomerID, &o.CustomerName, &o.Status, 
 			&o.OriginLat, &o.OriginLng, &o.DestLat, &o.DestLng,
@@ -203,7 +192,6 @@ func (r *OrderRepository) GetHistory(ctx context.Context, userID string) ([]doma
             return nil, err
         }
 
-        // 3. Buscamos los ítems de cada orden (Igual que en GetPending)
         itemQuery := `
             SELECT oi.product_id, p.name, oi.quantity, oi.price_at_time
             FROM order_items oi
@@ -244,7 +232,6 @@ func (r *OrderRepository) CreateWithItems(ctx context.Context, o *domain.Order) 
 	}
 	defer tx.Rollback(ctx)
 
-	// A. Insertar Orden incluyendo las nuevas columnas numéricas
 	queryOrder := `
         INSERT INTO orders (
             customer_id, status, destination_address, total_price, 
@@ -259,7 +246,6 @@ func (r *OrderRepository) CreateWithItems(ctx context.Context, o *domain.Order) 
         RETURNING id`
 
 	var orderID string
-	// El orden de los parámetros es fundamental:
 	err = tx.QueryRow(ctx, queryOrder,
 		o.CustomerID,         // $1
 		o.Status,             // $2
@@ -275,7 +261,6 @@ func (r *OrderRepository) CreateWithItems(ctx context.Context, o *domain.Order) 
 		return "", err
 	}
 
-	// B. Insertar Items (Sigue igual)
 	for _, item := range o.Items {
 		queryItem := `INSERT INTO order_items (order_id, product_id, quantity, price_at_time) VALUES ($1, $2, $3, $4)`
 		if _, err := tx.Exec(ctx, queryItem, orderID, item.ProductID, item.Quantity, item.PriceAtTime); err != nil {
