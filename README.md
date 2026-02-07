@@ -23,10 +23,9 @@ Ejecutar el siguiente comando en la terminal:
 
 Bash
 docker-compose up --build
-La API estará disponible en http://localhost:8080.
 
 ## Documentación
-Una vez levantado el servicio, podés acceder a la interfaz de Swagger para probar los endpoints: http://localhost:8080/swagger/index.html
+Una vez levantado el servicio, podés acceder a la interfaz de Swagger para probar los endpoints: http://localhost:8080/swagger/index.html#/
 
 ## Seguridad
 Autenticación basada en JWT.
