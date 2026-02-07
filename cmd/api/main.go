@@ -11,6 +11,7 @@ import (
 	"tracking/internal/routes"
 	"tracking/internal/repository"
 	"tracking/internal/service"
+	"os"
 )
 // @title API de Logística Rafaela
 // @version 1.0
@@ -23,9 +24,9 @@ import (
 func main() {
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		log.Println("Aviso: No se encontró el archivo .env, usando variables de entorno del sistema")
 	}
-
+	log.Printf("DEBUG: La URL de la base es: %s", os.Getenv("DB_URL"))
 	pool, err := db.ConnectPostgres()
 	if err != nil {
 		log.Fatal("No se pudo conectar a la BD:", err)

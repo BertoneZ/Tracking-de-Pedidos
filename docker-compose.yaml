@@ -1,9 +1,21 @@
-version: '3.8'
 services:
-  db:
-    image: postgis/postgis:latest # Imagen oficial con PostGIS
+  app:
+    build: . # Busca el Dockerfile en la carpeta actual
     ports:
-      - "5433:5432"
+      - "8080:8080"
+    environment:
+      # IMPORTANTE: Acá usamos "db" y "redis" en lugar de "localhost"
+      - DB_URL=postgres://user_logistics:pass_logistics@db:5432/logistics_db?sslmode=disable
+      - REDIS_URL=redis:6379
+      - JWT_SECRET=una_clave_secreta_muy_larga_y_segura_123
+    depends_on:
+      - db
+      - redis
+
+  db:
+    image: postgis/postgis:latest
+    ports:
+      - "5433:5432" # El puerto 5433 es solo para VOS desde afuera
     environment:
       POSTGRES_USER: user_logistics
       POSTGRES_PASSWORD: pass_logistics

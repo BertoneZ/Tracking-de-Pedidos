@@ -30,3 +30,14 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Binarios generados en Docker/Linux (sin extensión)
+main
+app
+
+# Logs del sistema
+*.log
+
+# Carpetas de configuración local del editor
+.idea/
+.vscode/

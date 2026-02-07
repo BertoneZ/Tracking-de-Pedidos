@@ -1,23 +1,20 @@
-	package db
-	import (
-		"context"
+package db
 
-		"github.com/jackc/pgx/v5/pgxpool"
-	)
+import (
+	"context"
+	"fmt"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"os"
+)
 
-	func ConnectPostgres() (*pgxpool.Pool, error) {
-		// Reemplazamos os.Getenv por el string directo (Hardcoded)
-		dsn := "postgres://user_logistics:pass_logistics@localhost:5433/logistics_db?sslmode=disable"
-		
-		pool, err := pgxpool.New(context.Background(), dsn)
-		if err != nil {
-			return nil, err
-		}
+func ConnectPostgres() (*pgxpool.Pool, error) {
 
-		// El Ping confirma que la contraseña 'pass_logistics' fue aceptada
-		if err := pool.Ping(context.Background()); err != nil {
-			return nil, err
-		}
-		
-		return pool, nil
-	}
+	connStr := os.Getenv("DB_URL")
+
+	// Agregá este log para ver qué está leyendo realmente tu app
+	fmt.Println("Intentando conectar a:", connStr)
+
+	return pgxpool.New(context.Background(), connStr)
+}
+
+// Agregá este log para ver qué está leyendo realmente tu app
