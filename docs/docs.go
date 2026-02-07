@@ -52,6 +52,49 @@ const docTemplate = `{
                 }
             }
         },
+        "/auth/register": {
+            "post": {
+                "description": "Crea un usuario en la DB con email, password, nombre y rol",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Registrar un nuevo usuario",
+                "parameters": [
+                    {
+                        "description": "Datos del registro",
+                        "name": "user",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/tracking_internal_dto.RegisterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/tracking_internal_domain.User"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/orders": {
             "post": {
                 "security": [
@@ -59,7 +102,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Registra un pedido con origen y destino",
+                "description": "Toma la dirección del cliente, busca las coordenadas y guarda el pedido",
                 "consumes": [
                     "application/json"
                 ],
@@ -85,7 +128,10 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/tracking_internal_domain.Order"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -291,6 +337,28 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/products": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Obtener el menú de productos",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/tracking_internal_dto.ProductResponse"
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -303,18 +371,34 @@ const docTemplate = `{
                 "customer_id": {
                     "type": "string"
                 },
+                "customer_name": {
+                    "description": "Agregá esto",
+                    "type": "string"
+                },
                 "dest_lat": {
                     "type": "number"
                 },
                 "dest_lng": {
                     "type": "number"
                 },
+                "destination_address": {
+                    "type": "string"
+                },
                 "driver_id": {
-                    "description": "Puntero porque puede ser nulo al inicio",
+                    "type": "string"
+                },
+                "driver_name": {
+                    "description": "Agregá esto",
                     "type": "string"
                 },
                 "id": {
                     "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/tracking_internal_domain.OrderItem"
+                    }
                 },
                 "origin_lat": {
                     "type": "number"
@@ -323,7 +407,46 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "status": {
-                    "description": "PENDING, ASSIGNED, etc.",
+                    "type": "string"
+                },
+                "total_price": {
+                    "type": "number"
+                }
+            }
+        },
+        "tracking_internal_domain.OrderItem": {
+            "type": "object",
+            "properties": {
+                "price_at_time": {
+                    "type": "number"
+                },
+                "product_id": {
+                    "type": "string"
+                },
+                "product_name": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "integer"
+                }
+            }
+        },
+        "tracking_internal_domain.User": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "full_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "role": {
                     "type": "string"
                 }
             }
@@ -331,23 +454,18 @@ const docTemplate = `{
         "tracking_internal_dto.CreateOrderRequest": {
             "type": "object",
             "required": [
-                "dest_lat",
-                "dest_lng",
-                "origin_lat",
-                "origin_lng"
+                "destination_address",
+                "items"
             ],
             "properties": {
-                "dest_lat": {
-                    "type": "number"
+                "destination_address": {
+                    "type": "string"
                 },
-                "dest_lng": {
-                    "type": "number"
-                },
-                "origin_lat": {
-                    "type": "number"
-                },
-                "origin_lng": {
-                    "type": "number"
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/tracking_internal_dto.OrderItemRequest"
+                    }
                 }
             }
         },
@@ -363,6 +481,67 @@ const docTemplate = `{
                 },
                 "password": {
                     "type": "string"
+                }
+            }
+        },
+        "tracking_internal_dto.OrderItemRequest": {
+            "type": "object",
+            "required": [
+                "product_id",
+                "quantity"
+            ],
+            "properties": {
+                "product_id": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "integer"
+                }
+            }
+        },
+        "tracking_internal_dto.ProductResponse": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                }
+            }
+        },
+        "tracking_internal_dto.RegisterRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "full_name",
+                "password",
+                "role"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "full_name": {
+                    "description": "Obligatorio",
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string",
+                    "minLength": 6
+                },
+                "role": {
+                    "type": "string",
+                    "enum": [
+                        "driver",
+                        "customer"
+                    ]
                 }
             }
         },

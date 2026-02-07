@@ -30,9 +30,12 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		// 4. Inyectar los datos del usuario en el contexto para que los handlers los usen
-		claims := token.Claims.(jwt.MapClaims)
-		c.Set("user_id", claims["user_id"])
-		c.Set("role", claims["role"])
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok {
+			c.AbortWithStatus(http.StatusUnauthorized)
+		}
+		c.Set("user_id", claims["user_id"].(string))
+		c.Set("role", claims["role"].(string))
 
 		c.Next() // Permite que la petición siga al siguiente Handler
 	}

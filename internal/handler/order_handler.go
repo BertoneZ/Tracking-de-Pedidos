@@ -1,58 +1,58 @@
 package handler
 
 import (
+	"errors"
+	"log/slog"
 	"net/http"
 	"tracking/internal/dto"
-	_"tracking/internal/domain"
 	"tracking/internal/service"
+	"tracking/internal/utils"
+
 	"github.com/gin-gonic/gin"
 )
 
 type OrderHandler struct {
-	svc *service.OrderService
+	svc service.OrderServiceInterface
 	locationSvc *service.LocationService
 }
 
 // Constructor que usás en routes.go
-func NewOrderHandler(oSvc *service.OrderService, locationSvc *service.LocationService) *OrderHandler {
+func NewOrderHandler(oSvc service.OrderServiceInterface, locationSvc *service.LocationService) *OrderHandler {
 	return &OrderHandler{svc: oSvc, locationSvc: locationSvc}
 }
-// CreateOrder godoc
+// Create godoc
 // @Summary Crear un nuevo pedido
-// @Description Registra un pedido con origen y destino
+// @Description Toma la dirección del cliente, busca las coordenadas y guarda el pedido
 // @Tags Orders
+// @Security BearerAuth
 // @Accept json
 // @Produce json
 // @Param order body dto.CreateOrderRequest true "Datos del pedido"
-// @Success 201 {object} domain.Order
+// @Success 201 {object} map[string]string
 // @Router /orders [post]
-// @Security BearerAuth
 func (h *OrderHandler) Create(c *gin.Context) {
-	var body dto.CreateOrderRequest
+    var req dto.CreateOrderRequest
+    if err := c.ShouldBindJSON(&req); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Datos inválidos"})
+        return
+    }
 
-	// 1. Validar el JSON de entrada usando el DTO
-	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Datos de orden inválidos"})
+    userID := c.MustGet("user_id").(string)
+
+    id, err := h.svc.CreateOrder(c.Request.Context(), req, userID)
+    if err != nil {
+       if errors.Is(err, utils.ErrInvalidAddress) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error interno al crear pedido"})
 		return
-	}
+    }
 
-	// 2. Obtener el ID del cliente desde el Middleware (JWT)
-	// c.MustGet trae el valor que guardamos con c.Set() en el middleware
-	customerID, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "No se pudo identificar al usuario"})
-		return
-	}
-
-	// 3. Llamar al servicio para crear la orden
-	order, err := h.svc.CreateOrder(c.Request.Context(), customerID.(string), body)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo crear el pedido"})
-		return
-	}
-
-	// 4. Devolver la orden creada
-	c.JSON(http.StatusCreated, order)
+    c.JSON(http.StatusCreated, gin.H{
+        "message": "Pedido creado con éxito",
+        "id":      id,
+    })
 }
 // GetPending godoc
 // @Summary Listar pedidos pendientes
@@ -60,17 +60,12 @@ func (h *OrderHandler) Create(c *gin.Context) {
 // @Tags Orders
 // @Security BearerAuth
 // @Produce json
-// @Success 200 {array} domain.Order
+// @Success 200 {array} dto.OrderResponse
 // @Router /orders/pending [get]
 func (h *OrderHandler) GetPending(c *gin.Context) {
 	orders, err := h.svc.GetPendingOrders(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al obtener pedidos"})
-		return
-	}
-
-	if len(orders) == 0 {
-		c.JSON(http.StatusOK, []interface{}{}) // Devolvemos lista vacía si no hay nada
 		return
 	}
 
@@ -85,13 +80,18 @@ func (h *OrderHandler) GetPending(c *gin.Context) {
 // @Success 200 {object} map[string]string
 // @Router /orders/{id}/accept [patch]
 func (h *OrderHandler) Accept(c *gin.Context) {
-	orderID := c.Param("id") // Saca el ID de la URL: /api/orders/:id/accept
-	driverID := c.MustGet("user_id").(string) // Lo sacamos del Token (Middleware)
+	orderID := c.Param("id") 
+	driverID := c.MustGet("user_id").(string) 
 
 	err := h.svc.AcceptOrder(c.Request.Context(), orderID, driverID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+		if errors.Is(err, utils.ErrOrderNotAvailable) || errors.Is(err, utils.ErrOrderNotFound){
+            c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+            return
+        }
+		slog.Error("error en accept", "err", err)
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al procesar la solicitud"})
+        return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Pedido aceptado con éxito"})
@@ -136,28 +136,40 @@ func (h *OrderHandler) UpdateLocation(c *gin.Context) {
 // @Success 200 {object} map[string]float64
 // @Router /orders/{id}/location [get]
 func (h *OrderHandler) GetOrderLocation(c *gin.Context) {
-	orderID := c.Param("id")
+    orderID := c.Param("id")
+    userID := c.MustGet("user_id").(string) // ID del usuario logueado
 
-	// 1. Buscar la orden en Postgres para saber quién es el driver
-	// (Podés usar un método del orderSvc para esto)
-	order, err := h.svc.GetOrderById(c.Request.Context(), orderID)
-	if err != nil || order.DriverID == "" {
-		c.JSON(http.StatusNotFound, gin.H{"error": "El pedido no tiene un repartidor asignado"})
-		return
-	}
+    // 1. Buscamos la orden
+    order, err := h.svc.GetOrderById(c.Request.Context(), orderID)
+    if err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"error": "Pedido no encontrado"})
+        return
+    }
 
-	// 2. Buscar la ubicación actual del driver en Redis
-	location, err := h.locationSvc.GetLocation(c.Request.Context(), order.DriverID)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-		return
-	}
+    // 2. SEGURIDAD: Solo el cliente que creó la orden puede trackearla
+    if order.CustomerID != userID {
+        c.JSON(http.StatusForbidden, gin.H{"error": "No tienes permiso para trackear este pedido"})
+        return
+    }
 
-	// 3. Devolver latitud y longitud al cliente
-	c.JSON(http.StatusOK, gin.H{
-		"lat": location.Latitude,
-		"lng": location.Longitude,
-	})
+    // 3. Verificamos si ya tiene un repartidor
+    if order.DriverID == "" {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "El pedido aún no tiene un repartidor asignado"})
+        return
+    }
+
+    // 4. Buscamos la ubicación en Redis
+    location, err := h.locationSvc.GetLocation(c.Request.Context(), order.DriverID)
+    if err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"error": "Ubicación no disponible en tiempo real"})
+        return
+    }
+
+    // 5. LIMPIEZA: Devolvemos solo lat y lng, nada de GeoHash o Dist
+    c.JSON(http.StatusOK, gin.H{
+        "lat": location.Latitude,
+        "lng": location.Longitude,
+    })
 }
 // Complete godoc
 // @Summary Finalizar entrega (Driver)
@@ -185,7 +197,7 @@ func (h *OrderHandler) Complete(c *gin.Context) {
 // @Tags Orders
 // @Security BearerAuth
 // @Produce json
-// @Success 200 {array} domain.Order
+// @Success 200 {array} dto.OrderResponse
 // @Router /orders/history [get]
 func (h *OrderHandler) GetHistory(c *gin.Context) {
 	userID := c.MustGet("user_id").(string)

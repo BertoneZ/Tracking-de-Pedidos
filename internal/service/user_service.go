@@ -2,45 +2,49 @@ package service
 
 import (
 	"context"
-	"golang.org/x/crypto/bcrypt"
+	"tracking/internal/auth"
 	"tracking/internal/domain"
 	"tracking/internal/repository"
-	"tracking/internal/auth"
+	"golang.org/x/crypto/bcrypt"
 )
-
+type UserServiceInterface interface {
+	Register(ctx context.Context, email, password, fullName, role string) (*domain.User, error)
+	Login(ctx context.Context, email, password string) (*domain.User, string, error)
+}
 type UserService struct {
-	repo *repository.UserRepository
+	repo repository.UserRepositoryInterface
 }
 
-func NewUserService(repo *repository.UserRepository) *UserService {
+func NewUserService(repo repository.UserRepositoryInterface) *UserService {
 	return &UserService{repo: repo}
 }
 
-func (s *UserService) Register(ctx context.Context, email, password, role string) (*domain.User, error) {
-	// Hashear contraseña
-	hashed, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+func (s *UserService) Register(ctx context.Context, email, password, fullName, role string) (*domain.User, error) {
+	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
 
 	user := &domain.User{
 		Email:        email,
 		PasswordHash: string(hashed),
+		FullName:   fullName,
 		Role:         role,
 	}
-
-	err := s.repo.Create(ctx, user)
+	err = s.repo.Create(ctx, user)
 	return user, err
 }
-func (s *UserService) Login(ctx context.Context, email, password string) (string, error) {
+func (s *UserService) Login(ctx context.Context, email, password string) (*domain.User, string, error) {
 	user, err := s.repo.GetByEmail(ctx, email)
 	if err != nil {
-		return "", err // Usuario no encontrado
+		return nil, "", err 
 	}
 
-	// Comparamos el hash de la BD con la password que envía el usuario
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
 	if err != nil {
-		return "", err // Contraseña incorrecta
+		return nil, "", err 
 	}
 
-	// Si todo está bien, generamos el JWT
-	return auth.GenerateToken(user.ID, user.Role)
+	token, err := auth.GenerateToken(user.ID, user.Role)
+	return user, token, err
 }

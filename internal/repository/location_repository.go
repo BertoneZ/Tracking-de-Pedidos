@@ -5,13 +5,28 @@ import (
 	"github.com/redis/go-redis/v9"
 	"errors"
 )
-
+type LocationRepositoryInterface interface {
+	SaveDriverLocation(ctx context.Context, driverID string, lat, lng float64) error
+	GetDriverLocation(ctx context.Context, driverID string) (*redis.GeoLocation, error)
+	DeleteDriverLocation(ctx context.Context, driverID string) error
+}
 type LocationRepository struct {
 	redis *redis.Client
 }
 
 func NewLocationRepository(r *redis.Client) *LocationRepository {
 	return &LocationRepository{redis: r}
+}
+
+const DriversKey = "drivers_locations"
+
+func (r *LocationRepository) SaveDriverLocation(ctx context.Context, driverID string, lat, lng float64) error {
+	// GEOADD es un "upsert": si el ID existe, pisa la ubicación. Perfecto para el tracking.
+	return r.redis.GeoAdd(ctx, DriversKey, &redis.GeoLocation{
+		Name:      driverID,
+		Latitude:  lat,
+		Longitude: lng,
+	}).Err()
 }
 
 func (r *LocationRepository) UpdateDriverLocation(ctx context.Context, driverID string, lat, lng float64) error {
@@ -34,4 +49,9 @@ func (r *LocationRepository) GetDriverLocation(ctx context.Context, driverID str
 		Longitude: pos[0].Longitude,
 		Latitude:  pos[0].Latitude,
 	}, nil
+}
+
+func (r *LocationRepository) DeleteDriverLocation(ctx context.Context, driverID string) error {
+	// Limpiamos Redis cuando el driver termina el pedido
+	return r.redis.ZRem(ctx, DriversKey, driverID).Err()
 }

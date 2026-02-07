@@ -9,6 +9,8 @@ import (
 	"log"
 	"tracking/internal/db"
 	"tracking/internal/routes"
+	"tracking/internal/repository"
+	"tracking/internal/service"
 )
 // @title API de Logística Rafaela
 // @version 1.0
@@ -33,6 +35,9 @@ func main() {
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	routes.RegisterUserRoutes(r, pool)
 	routes.RegisterOrderRoutes(r, pool, rdb)
+	productRepo := repository.NewProductRepository(pool)
+	productService := service.NewProductService(productRepo)
+	routes.RegisterProductRoutes(r, productService)
 
 	r.Run(":8080")
 }

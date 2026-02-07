@@ -6,38 +6,70 @@ definitions:
         type: string
       customer_id:
         type: string
+      customer_name:
+        description: Agregá esto
+        type: string
       dest_lat:
         type: number
       dest_lng:
         type: number
+      destination_address:
+        type: string
       driver_id:
-        description: Puntero porque puede ser nulo al inicio
+        type: string
+      driver_name:
+        description: Agregá esto
         type: string
       id:
         type: string
+      items:
+        items:
+          $ref: '#/definitions/tracking_internal_domain.OrderItem'
+        type: array
       origin_lat:
         type: number
       origin_lng:
         type: number
       status:
-        description: PENDING, ASSIGNED, etc.
+        type: string
+      total_price:
+        type: number
+    type: object
+  tracking_internal_domain.OrderItem:
+    properties:
+      price_at_time:
+        type: number
+      product_id:
+        type: string
+      product_name:
+        type: string
+      quantity:
+        type: integer
+    type: object
+  tracking_internal_domain.User:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      full_name:
+        type: string
+      id:
+        type: string
+      role:
         type: string
     type: object
   tracking_internal_dto.CreateOrderRequest:
     properties:
-      dest_lat:
-        type: number
-      dest_lng:
-        type: number
-      origin_lat:
-        type: number
-      origin_lng:
-        type: number
+      destination_address:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/tracking_internal_dto.OrderItemRequest'
+        type: array
     required:
-    - dest_lat
-    - dest_lng
-    - origin_lat
-    - origin_lng
+    - destination_address
+    - items
     type: object
   tracking_internal_dto.LoginRequest:
     properties:
@@ -48,6 +80,48 @@ definitions:
     required:
     - email
     - password
+    type: object
+  tracking_internal_dto.OrderItemRequest:
+    properties:
+      product_id:
+        type: string
+      quantity:
+        type: integer
+    required:
+    - product_id
+    - quantity
+    type: object
+  tracking_internal_dto.ProductResponse:
+    properties:
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      price:
+        type: number
+    type: object
+  tracking_internal_dto.RegisterRequest:
+    properties:
+      email:
+        type: string
+      full_name:
+        description: Obligatorio
+        type: string
+      password:
+        minLength: 6
+        type: string
+      role:
+        enum:
+        - driver
+        - customer
+        type: string
+    required:
+    - email
+    - full_name
+    - password
+    - role
     type: object
   tracking_internal_dto.UpdateLocationRequest:
     properties:
@@ -90,11 +164,40 @@ paths:
       summary: Iniciar sesión
       tags:
       - Auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Crea un usuario en la DB con email, password, nombre y rol
+      parameters:
+      - description: Datos del registro
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/tracking_internal_dto.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/tracking_internal_domain.User'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Registrar un nuevo usuario
+      tags:
+      - auth
   /orders:
     post:
       consumes:
       - application/json
-      description: Registra un pedido con origen y destino
+      description: Toma la dirección del cliente, busca las coordenadas y guarda el
+        pedido
       parameters:
       - description: Datos del pedido
         in: body
@@ -108,7 +211,9 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/tracking_internal_domain.Order'
+            additionalProperties:
+              type: string
+            type: object
       security:
       - BearerAuth: []
       summary: Crear un nuevo pedido
@@ -241,6 +346,20 @@ paths:
       summary: Listar pedidos pendientes
       tags:
       - Orders
+  /products:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/tracking_internal_dto.ProductResponse'
+            type: array
+      summary: Obtener el menú de productos
+      tags:
+      - Products
 securityDefinitions:
   BearerAuth:
     in: header

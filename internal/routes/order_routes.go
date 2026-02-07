@@ -10,15 +10,15 @@ import (
 	"tracking/internal/middleware"
 )
 
-// Agregá el tercer parámetro rdb aquí:
 func RegisterOrderRoutes(r *gin.Engine, db *pgxpool.Pool, rdb *redis.Client) {
 	// 1. Setup Órdenes (Postgres)
 	orderRepo := repository.NewOrderRepository(db, rdb) 
-    orderSvc := service.NewOrderService(orderRepo)
+	productRepo := repository.NewProductRepository(db)
+    orderSvc := service.NewOrderService(orderRepo, productRepo)
 
 	// 2. Setup Ubicación (Redis)
 	locRepo := repository.NewLocationRepository(rdb)
-	locSvc := service.NewLocationService(locRepo)
+	locSvc := service.NewLocationService(locRepo, orderRepo)
 
 	// 3. Crear el Handler con AMBOS servicios
 	h := handler.NewOrderHandler(orderSvc, locSvc)
@@ -26,16 +26,14 @@ func RegisterOrderRoutes(r *gin.Engine, db *pgxpool.Pool, rdb *redis.Client) {
 	orders := r.Group("/api/orders")
 	orders.Use(middleware.AuthMiddleware())
 	{
-		orders.POST("/", h.Create)
-		orders.GET("/pending", h.GetPending)
-		orders.PATCH("/:id/accept", h.Accept)
-		orders.POST("/location", h.UpdateLocation) // El endpoint para el GPS
-		// Dentro de RegisterOrderRoutes
+		orders.POST("/", middleware.RoleBlock("customer"), h.Create)
+		
+		orders.GET("/pending", middleware.RoleBlock("driver"), h.GetPending)
+		orders.PATCH("/:id/accept", middleware.RoleBlock("driver"), h.Accept)
+		orders.PATCH("/:id/complete", middleware.RoleBlock("driver"), h.Complete)
+		orders.POST("/location", middleware.RoleBlock("driver"), h.UpdateLocation)
+		
 		orders.GET("/:id/location", h.GetOrderLocation)
-		// Dentro de RegisterOrderRoutes
-		orders.PATCH("/:id/complete", h.Complete)
-		// Dentro del grupo de órdenes
 		orders.GET("/history", h.GetHistory)
-
 	}
 }
