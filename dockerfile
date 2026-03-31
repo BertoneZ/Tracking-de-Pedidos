@@ -1,17 +1,17 @@
 # ETAPA 1: Compilación (Builder)
 FROM golang:1.24-alpine AS builder
 
-# Seteamos el directorio de trabajo
+# Set el directorio de trabajo
 WORKDIR /app
 
-# Copiamos archivos de dependencias y descargamos
+# Copiar archivos de dependencias y descargamos
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copiamos el resto del código
+# Copiar el resto del código
 COPY . .
 
-# Compilamos el binario (ajustá la ruta si tu main.go está en otro lado)
+# Compilamos el binario 
 RUN go build -o main ./cmd/api/main.go
 
 # ETAPA 2: Ejecución (Runner)

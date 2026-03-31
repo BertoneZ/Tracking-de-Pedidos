@@ -1,52 +1,6 @@
 basePath: /api
 definitions:
-  tracking_internal_domain.Order:
-    properties:
-      created_at:
-        type: string
-      customer_id:
-        type: string
-      customer_name:
-        description: Agregá esto
-        type: string
-      dest_lat:
-        type: number
-      dest_lng:
-        type: number
-      destination_address:
-        type: string
-      driver_id:
-        type: string
-      driver_name:
-        description: Agregá esto
-        type: string
-      id:
-        type: string
-      items:
-        items:
-          $ref: '#/definitions/tracking_internal_domain.OrderItem'
-        type: array
-      origin_lat:
-        type: number
-      origin_lng:
-        type: number
-      status:
-        type: string
-      total_price:
-        type: number
-    type: object
-  tracking_internal_domain.OrderItem:
-    properties:
-      price_at_time:
-        type: number
-      product_id:
-        type: string
-      product_name:
-        type: string
-      quantity:
-        type: integer
-    type: object
-  tracking_internal_domain.User:
+  domain.User:
     properties:
       created_at:
         type: string
@@ -56,22 +10,41 @@ definitions:
         type: string
       id:
         type: string
+      is_active:
+        type: boolean
       role:
         type: string
     type: object
-  tracking_internal_dto.CreateOrderRequest:
+  dto.BootstrapAdminRequest:
+    properties:
+      email:
+        type: string
+      full_name:
+        type: string
+      password:
+        minLength: 6
+        type: string
+      secret:
+        type: string
+    required:
+    - email
+    - full_name
+    - password
+    - secret
+    type: object
+  dto.CreateOrderRequest:
     properties:
       destination_address:
         type: string
       items:
         items:
-          $ref: '#/definitions/tracking_internal_dto.OrderItemRequest'
+          $ref: '#/definitions/dto.OrderItemRequest'
         type: array
     required:
     - destination_address
     - items
     type: object
-  tracking_internal_dto.LoginRequest:
+  dto.LoginRequest:
     properties:
       email:
         type: string
@@ -81,7 +54,7 @@ definitions:
     - email
     - password
     type: object
-  tracking_internal_dto.OrderItemRequest:
+  dto.OrderItemRequest:
     properties:
       product_id:
         type: string
@@ -91,23 +64,54 @@ definitions:
     - product_id
     - quantity
     type: object
-  tracking_internal_dto.ProductResponse:
+  dto.OrderItemResponse:
+    properties:
+      product_name:
+        type: string
+      quantity:
+        type: integer
+    type: object
+  dto.OrderResponse:
+    properties:
+      created_at:
+        type: string
+      customer_id:
+        type: string
+      customer_name:
+        type: string
+      destination_address:
+        type: string
+      driver_id:
+        type: string
+      id:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/dto.OrderItemResponse'
+        type: array
+      status:
+        type: string
+      total_price:
+        type: number
+    type: object
+  dto.ProductResponse:
     properties:
       description:
         type: string
       id:
         type: string
+      is_active:
+        type: boolean
       name:
         type: string
       price:
         type: number
     type: object
-  tracking_internal_dto.RegisterRequest:
+  dto.RegisterRequest:
     properties:
       email:
         type: string
       full_name:
-        description: Obligatorio
         type: string
       password:
         minLength: 6
@@ -123,7 +127,7 @@ definitions:
     - password
     - role
     type: object
-  tracking_internal_dto.UpdateLocationRequest:
+  dto.UpdateLocationRequest:
     properties:
       lat:
         type: number
@@ -133,13 +137,131 @@ definitions:
     - lat
     - lng
     type: object
-host: localhost:8080
+  dto.UpdateProductRequest:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+      price:
+        type: number
+    type: object
+  dto.UpsertProductRequest:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+      price:
+        type: number
+    required:
+    - name
+    - price
+    type: object
+host: localhost:8081
 info:
   contact: {}
   description: Servidor de tracking de pedidos en tiempo real.
   title: API de Logística Rafaela
   version: "1.0"
 paths:
+  /admin/users:
+    get:
+      description: Devuelve todos los usuarios del sistema. Solo ADMIN. Soporta filtros
+        por role y active.
+      parameters:
+      - description: Filtrar por role (driver, customer, admin)
+        in: query
+        name: role
+        type: string
+      - description: Filtrar por estado activo (true/false)
+        in: query
+        name: active
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/domain.User'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Listar usuarios
+      tags:
+      - Admin
+  /admin/users/{id}/deactivate:
+    patch:
+      description: Realiza soft delete de un usuario (is_active=false). Solo ADMIN.
+      parameters:
+      - description: ID del usuario
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Desactivar usuario
+      tags:
+      - Admin
+  /auth/bootstrap-admin:
+    post:
+      consumes:
+      - application/json
+      description: Crea el primer admin del sistema. Requiere el secret de bootstrap
+        y falla si ya existe un admin.
+      parameters:
+      - description: Datos para crear el admin inicial
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/dto.BootstrapAdminRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/domain.User'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Crear primer admin (bootstrap)
+      tags:
+      - Auth
   /auth/login:
     post:
       consumes:
@@ -151,7 +273,7 @@ paths:
         name: credentials
         required: true
         schema:
-          $ref: '#/definitions/tracking_internal_dto.LoginRequest'
+          $ref: '#/definitions/dto.LoginRequest'
       produces:
       - application/json
       responses:
@@ -175,14 +297,14 @@ paths:
         name: user
         required: true
         schema:
-          $ref: '#/definitions/tracking_internal_dto.RegisterRequest'
+          $ref: '#/definitions/dto.RegisterRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/tracking_internal_domain.User'
+            $ref: '#/definitions/domain.User'
         "400":
           description: Bad Request
           schema:
@@ -204,7 +326,7 @@ paths:
         name: order
         required: true
         schema:
-          $ref: '#/definitions/tracking_internal_dto.CreateOrderRequest'
+          $ref: '#/definitions/dto.CreateOrderRequest'
       produces:
       - application/json
       responses:
@@ -297,7 +419,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/tracking_internal_domain.Order'
+              $ref: '#/definitions/dto.OrderResponse'
             type: array
       security:
       - BearerAuth: []
@@ -315,7 +437,7 @@ paths:
         name: location
         required: true
         schema:
-          $ref: '#/definitions/tracking_internal_dto.UpdateLocationRequest'
+          $ref: '#/definitions/dto.UpdateLocationRequest'
       responses:
         "200":
           description: OK
@@ -339,7 +461,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/tracking_internal_domain.Order'
+              $ref: '#/definitions/dto.OrderResponse'
             type: array
       security:
       - BearerAuth: []
@@ -355,9 +477,115 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/tracking_internal_dto.ProductResponse'
+              $ref: '#/definitions/dto.ProductResponse'
             type: array
+      security:
+      - BearerAuth: []
       summary: Obtener el menú de productos
+      tags:
+      - Products
+    post:
+      consumes:
+      - application/json
+      description: Crea un nuevo producto del catalogo. Solo ADMIN.
+      parameters:
+      - description: Datos del producto
+        in: body
+        name: product
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpsertProductRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.ProductResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Crear producto
+      tags:
+      - Products
+  /products/{id}:
+    delete:
+      description: Elimina un producto por ID. Solo ADMIN.
+      parameters:
+      - description: ID del producto
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Eliminar producto
+      tags:
+      - Products
+    put:
+      consumes:
+      - application/json
+      description: Actualiza un producto existente por ID. Solo ADMIN.
+      parameters:
+      - description: ID del producto
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Campos a actualizar del producto
+        in: body
+        name: product
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateProductRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ProductResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Actualizar producto
       tags:
       - Products
 securityDefinitions:

@@ -5,6 +5,7 @@ type ProductResponse struct {
 	Name        string  `json:"name"`
 	Price       float64 `json:"price"`
 	Description string  `json:"description"`
+	IsActive    bool    `json:"is_active"`
 }
 
 type UpsertProductRequest struct {
@@ -13,3 +14,8 @@ type UpsertProductRequest struct {
 	Description string  `json:"description"`
 }
 
+type UpdateProductRequest struct {
+	Name        *string  `json:"name"`
+	Price       *float64 `json:"price"`
+	Description *string  `json:"description"`
+}

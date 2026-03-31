@@ -1,22 +1,24 @@
 package main
 
 import (
-	_"tracking/docs"
-	"github.com/swaggo/gin-swagger"
-    "github.com/swaggo/files"
+	"log"
+	"os"
+	_ "tracking/docs"
+	"tracking/internal/db"
+	"tracking/internal/repository"
+	"tracking/internal/routes"
+	"tracking/internal/service"
+
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"log"
-	"tracking/internal/db"
-	"tracking/internal/routes"
-	"tracking/internal/repository"
-	"tracking/internal/service"
-	"os"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
+
 // @title API de Logística Rafaela
 // @version 1.0
 // @description Servidor de tracking de pedidos en tiempo real.
-// @host localhost:8080
+// @host localhost:8081
 // @BasePath /api
 // @securityDefinitions.apikey BearerAuth
 // @in header
@@ -40,5 +42,5 @@ func main() {
 	productService := service.NewProductService(productRepo)
 	routes.RegisterProductRoutes(r, productService)
 
-	r.Run(":8080")
+	r.Run(":8081")
 }

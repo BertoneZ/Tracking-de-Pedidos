@@ -12,7 +12,7 @@ import (
 )
 
 type OrderHandler struct {
-	svc service.OrderServiceInterface
+	svc         service.OrderServiceInterface
 	locationSvc *service.LocationService
 }
 
@@ -20,6 +20,7 @@ type OrderHandler struct {
 func NewOrderHandler(oSvc service.OrderServiceInterface, locationSvc *service.LocationService) *OrderHandler {
 	return &OrderHandler{svc: oSvc, locationSvc: locationSvc}
 }
+
 // Create godoc
 // @Summary Crear un nuevo pedido
 // @Description Toma la dirección del cliente, busca las coordenadas y guarda el pedido
@@ -31,29 +32,30 @@ func NewOrderHandler(oSvc service.OrderServiceInterface, locationSvc *service.Lo
 // @Success 201 {object} map[string]string
 // @Router /orders [post]
 func (h *OrderHandler) Create(c *gin.Context) {
-    var req dto.CreateOrderRequest
-    if err := c.ShouldBindJSON(&req); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Datos inválidos"})
-        return
-    }
+	var req dto.CreateOrderRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Datos inválidos"})
+		return
+	}
 
-    userID := c.MustGet("user_id").(string)
+	userID := c.MustGet("user_id").(string)
 
-    id, err := h.svc.CreateOrder(c.Request.Context(), req, userID)
-    if err != nil {
-       if errors.Is(err, utils.ErrInvalidAddress) {
+	id, err := h.svc.CreateOrder(c.Request.Context(), req, userID)
+	if err != nil {
+		if errors.Is(err, utils.ErrInvalidAddress) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error interno al crear pedido"})
 		return
-    }
+	}
 
-    c.JSON(http.StatusCreated, gin.H{
-        "message": "Pedido creado con éxito",
-        "id":      id,
-    })
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "Pedido creado con éxito",
+		"id":      id,
+	})
 }
+
 // GetPending godoc
 // @Summary Listar pedidos pendientes
 // @Description Obtiene todos los pedidos con estado 'PENDING' disponibles para ser aceptados
@@ -71,6 +73,7 @@ func (h *OrderHandler) GetPending(c *gin.Context) {
 
 	c.JSON(http.StatusOK, orders)
 }
+
 // AcceptOrder godoc
 // @Summary Aceptar un pedido (Driver)
 // @Description Cambia el estado del pedido a ASSIGNED
@@ -80,22 +83,23 @@ func (h *OrderHandler) GetPending(c *gin.Context) {
 // @Success 200 {object} map[string]string
 // @Router /orders/{id}/accept [patch]
 func (h *OrderHandler) Accept(c *gin.Context) {
-	orderID := c.Param("id") 
-	driverID := c.MustGet("user_id").(string) 
+	orderID := c.Param("id")
+	driverID := c.MustGet("user_id").(string)
 
 	err := h.svc.AcceptOrder(c.Request.Context(), orderID, driverID)
 	if err != nil {
-		if errors.Is(err, utils.ErrOrderNotAvailable) || errors.Is(err, utils.ErrOrderNotFound){
-            c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
-            return
-        }
+		if errors.Is(err, utils.ErrOrderNotAvailable) || errors.Is(err, utils.ErrOrderNotFound) {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
 		slog.Error("error en accept", "err", err)
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al procesar la solicitud"})
-        return
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al procesar la solicitud"})
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Pedido aceptado con éxito"})
 }
+
 // UpdateLocation godoc
 // @Summary Actualizar GPS (Driver)
 // @Description Guarda la ubicación actual en Redis
@@ -126,6 +130,7 @@ func (h *OrderHandler) UpdateLocation(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"status": "Ubicación actualizada correctamente"})
 }
+
 // GetOrderLocation godoc
 // @Summary Consultar ubicación de un pedido (Cliente)
 // @Description Obtiene la última posición registrada en Redis del driver asignado a la orden
@@ -136,37 +141,39 @@ func (h *OrderHandler) UpdateLocation(c *gin.Context) {
 // @Success 200 {object} map[string]float64
 // @Router /orders/{id}/location [get]
 func (h *OrderHandler) GetOrderLocation(c *gin.Context) {
-    orderID := c.Param("id")
-    userID := c.MustGet("user_id").(string) 
+	orderID := c.Param("id")
+	userID := c.MustGet("user_id").(string)
+	role := c.MustGet("role").(string)
 
-    order, err := h.svc.GetOrderById(c.Request.Context(), orderID)
-    if err != nil {
-        c.JSON(http.StatusNotFound, gin.H{"error": "Pedido no encontrado"})
-        return
-    }
+	order, err := h.svc.GetOrderById(c.Request.Context(), orderID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Pedido no encontrado"})
+		return
+	}
 
-    if order.CustomerID != userID {
-        c.JSON(http.StatusForbidden, gin.H{"error": "No tienes permiso para trackear este pedido"})
-        return
-    }
+	if role != "admin" && order.CustomerID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "No tienes permiso para trackear este pedido"})
+		return
+	}
 
-    if order.DriverID == "" {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "El pedido aún no tiene un repartidor asignado"})
-        return
-    }
+	if order.DriverID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "El pedido aún no tiene un repartidor asignado"})
+		return
+	}
 
-    //  Buscamos la ubicación en Redis
-    location, err := h.locationSvc.GetLocation(c.Request.Context(), order.DriverID)
-    if err != nil {
-        c.JSON(http.StatusNotFound, gin.H{"error": "Ubicación no disponible en tiempo real"})
-        return
-    }
+	//  Buscamos la ubicación en Redis
+	location, err := h.locationSvc.GetLocation(c.Request.Context(), order.DriverID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Ubicación no disponible en tiempo real"})
+		return
+	}
 
-    c.JSON(http.StatusOK, gin.H{
-        "lat": location.Latitude,
-        "lng": location.Longitude,
-    })
+	c.JSON(http.StatusOK, gin.H{
+		"lat": location.Latitude,
+		"lng": location.Longitude,
+	})
 }
+
 // Complete godoc
 // @Summary Finalizar entrega (Driver)
 // @Description Cambia el estado a 'DELIVERED' en Postgres y elimina la ubicación de Redis
@@ -187,6 +194,7 @@ func (h *OrderHandler) Complete(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "¡Pedido entregado con éxito!"})
 }
+
 // GetHistory godoc
 // @Summary Ver historial de pedidos
 // @Description Trae todos los pedidos DELIVERED del usuario

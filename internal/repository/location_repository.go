@@ -9,6 +9,7 @@ type LocationRepositoryInterface interface {
 	SaveDriverLocation(ctx context.Context, driverID string, lat, lng float64) error
 	GetDriverLocation(ctx context.Context, driverID string) (*redis.GeoLocation, error)
 	DeleteDriverLocation(ctx context.Context, driverID string) error
+	UpdateDriverLocation(ctx context.Context, driverID string, lat, lng float64) error
 }
 type LocationRepository struct {
 	redis *redis.Client
@@ -30,7 +31,7 @@ func (r *LocationRepository) SaveDriverLocation(ctx context.Context, driverID st
 
 func (r *LocationRepository) UpdateDriverLocation(ctx context.Context, driverID string, lat, lng float64) error {
 	
-	return r.redis.GeoAdd(ctx, "drivers_locations", &redis.GeoLocation{
+	return r.redis.GeoAdd(ctx, DriversKey, &redis.GeoLocation{
 		Name:      driverID,
 		Latitude:  lat,
 		Longitude: lng,
