@@ -24,8 +24,7 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 
 		c.Next()
 
-		// Aquí podrías agregar lógica adicional después del handler
-		// Por ejemplo, logging de errores, etc.
+	
 	}
 }
 

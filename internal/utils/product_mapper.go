@@ -5,7 +5,6 @@ import (
 	"tracking/internal/dto"
 )
 
-// DTO Request -> Domain
 func ToProductDomain(req dto.UpsertProductRequest) domain.Product {
 	return domain.Product{
 		Name:        req.Name,
@@ -14,7 +13,7 @@ func ToProductDomain(req dto.UpsertProductRequest) domain.Product {
 	}
 }
 
-// Domain -> DTO Response
+
 func ToProductResponse(p domain.Product) dto.ProductResponse {
 	return dto.ProductResponse{
 		ID:          p.ID,
@@ -25,7 +24,6 @@ func ToProductResponse(p domain.Product) dto.ProductResponse {
 	}
 }
 
-// Slice Domain -> Slice DTO Response
 func SliceProductDomainToProductResponseListDto(products []domain.Product) []dto.ProductResponse {
 	if products == nil {
 		return []dto.ProductResponse{}

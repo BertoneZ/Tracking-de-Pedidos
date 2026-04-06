@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// Este struct solo se usa aquí para mapear la respuesta de la API externa
+// Este struct solo se usa aca para mapear la respuesta de la API externa
 type GeocodeResponse struct {
 	Lat string `json:"lat"`
 	Lon string `json:"lon"`
@@ -20,7 +20,7 @@ type GeocodeResponse struct {
 func (s *OrderService) GetCoordinates(address string) (float64, float64, error) {
 	client := &http.Client{Timeout: 10 * time.Second}
 	
-	// Filtramos por Rafaela para que la búsqueda sea precisa
+	// Filtro por Rafaela para que la búsqueda sea precisa
 	query := fmt.Sprintf("%s, Rafaela, Argentina", address)
 	apiURL := fmt.Sprintf("https://nominatim.openstreetmap.org/search?q=%s&format=json&limit=1", url.QueryEscape(query))
 
