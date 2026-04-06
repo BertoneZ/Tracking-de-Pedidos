@@ -5,9 +5,7 @@ import (
 	"os"
 	_ "tracking/docs"
 	"tracking/internal/db"
-	"tracking/internal/repository"
 	"tracking/internal/routes"
-	"tracking/internal/service"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -36,11 +34,9 @@ func main() {
 	rdb := db.ConnectRedis()
 	r := gin.Default()
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-	routes.RegisterUserRoutes(r, pool)
+	routes.RegisterUserRoutes(r, pool, rdb)
 	routes.RegisterOrderRoutes(r, pool, rdb)
-	productRepo := repository.NewProductRepository(pool)
-	productService := service.NewProductService(productRepo)
-	routes.RegisterProductRoutes(r, productService)
+	routes.RegisterProductRoutes(r, pool)
 
 	r.Run(":8081")
 }

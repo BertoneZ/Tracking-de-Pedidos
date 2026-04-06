@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"tracking/internal/dto"
 	"tracking/internal/service"
+	"tracking/internal/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
@@ -52,7 +53,7 @@ func (h *ProductHandler) GetProductsHandler(c *gin.Context) {
 func (h *ProductHandler) CreateProductHandler(c *gin.Context) {
 	var req dto.UpsertProductRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, utils.HandleValidationErrors(err))
 		return
 	}
 
@@ -87,7 +88,7 @@ func (h *ProductHandler) UpdateProductHandler(c *gin.Context) {
 
 	var req dto.UpdateProductRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, utils.HandleValidationErrors(err))
 		return
 	}
 

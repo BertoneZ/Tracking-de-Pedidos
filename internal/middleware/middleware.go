@@ -6,49 +6,47 @@ import (
 	"tracking/internal/auth"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 )
 
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
+		authHeader := strings.TrimSpace(c.GetHeader("Authorization"))
 		if authHeader == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Se requiere token"})
 			c.Abort()
 			return
 		}
 
-		tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
+		parts := strings.Fields(authHeader)
+		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Formato de Authorization inválido"})
+			c.Abort()
+			return
+		}
 
-		token, err := auth.ValidateToken(tokenStr)
-		if err != nil || !token.Valid {
+		tokenStr := parts[1]
+
+		claims, err := auth.ValidateAccessToken(tokenStr)
+		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token inválido o expirado"})
 			c.Abort()
 			return
 		}
 
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok {
-			c.AbortWithStatus(http.StatusUnauthorized)
-			return
-		}
-
-		userID, ok := claims["user_id"].(string)
-		if !ok || userID == "" {
+		if claims.UserID == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "token inválido"})
 			c.Abort()
 			return
 		}
 
-		role, ok := claims["role"].(string)
-		if !ok || role == "" {
+		if claims.Role == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "token inválido"})
 			c.Abort()
 			return
 		}
 
-		c.Set("user_id", userID)
-		c.Set("role", role)
+		c.Set("user_id", claims.UserID)
+		c.Set("role", claims.Role)
 
 		c.Next()
 	}

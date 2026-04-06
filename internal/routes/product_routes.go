@@ -3,12 +3,16 @@ package routes
 import (
 	"tracking/internal/handler"
 	"tracking/internal/middleware"
+	"tracking/internal/repository"
 	"tracking/internal/service"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func RegisterProductRoutes(r *gin.Engine, svc *service.ProductService) {
+func RegisterProductRoutes(r *gin.Engine, db *pgxpool.Pool) {
+	productRepo := repository.NewProductRepository(db)
+	svc := service.NewProductService(productRepo)
 	h := handler.NewProductHandler(svc)
 	productGroup := r.Group("/api/products")
 	{

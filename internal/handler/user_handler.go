@@ -5,6 +5,7 @@ import (
 	_ "tracking/internal/domain"
 	_ "tracking/internal/dto"
 	"tracking/internal/service"
+	"tracking/internal/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -36,17 +37,19 @@ func (h *UserHandler) Register(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		validationErr := utils.HandleValidationErrors(err)
+		c.JSON(validationErr.StatusCode, validationErr.ToErrorResponse())
 		return
 	}
 
 	user, err := h.svc.Register(c.Request.Context(), body.Email, body.Password, body.FullName, body.Role)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "error al crear usuario"})
+		appErr := utils.NewAppError("REGISTRATION_ERROR", "Error al crear usuario", 500, err)
+		c.JSON(appErr.StatusCode, appErr.ToErrorResponse())
 		return
 	}
 
-	c.JSON(http.StatusCreated, user)
+	c.JSON(201, user)
 }
 
 // Login godoc
@@ -69,20 +72,56 @@ func (h *UserHandler) Login(c *gin.Context) {
 		return
 	}
 
-	user, token, err := h.svc.Login(c.Request.Context(), body.Email, body.Password)
+	user, accessToken, refreshToken, err := h.svc.Login(c.Request.Context(), body.Email, body.Password)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Credenciales inválidas"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"token": token,
+		"access_token":  accessToken,
+		"refresh_token": refreshToken,
+		"token_type":    "Bearer",
 		"user": gin.H{
 			"id":        user.ID,
 			"email":     user.Email,
 			"full_name": user.FullName,
 			"role":      user.Role,
 		},
+	})
+}
+
+// RefreshToken godoc
+// @Summary Renovar tokens
+// @Description Devuelve un nuevo access token y refresh token válidos
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param data body dto.RefreshTokenRequest true "Refresh token"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Router /auth/refresh [post]
+func (h *UserHandler) RefreshToken(c *gin.Context) {
+	var body struct {
+		RefreshToken string `json:"refresh_token" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "refresh_token requerido"})
+		return
+	}
+
+	_, accessToken, refreshToken, err := h.svc.Refresh(c.Request.Context(), body.RefreshToken)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "refresh token inválido o expirado"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"access_token":  accessToken,
+		"refresh_token": refreshToken,
+		"token_type":    "Bearer",
 	})
 }
 
@@ -106,7 +145,7 @@ func (h *UserHandler) BootstrapAdmin(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, utils.HandleValidationErrors(err))
 		return
 	}
 

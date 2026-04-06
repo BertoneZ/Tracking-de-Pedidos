@@ -34,7 +34,7 @@ func NewOrderHandler(oSvc service.OrderServiceInterface, locationSvc *service.Lo
 func (h *OrderHandler) Create(c *gin.Context) {
 	var req dto.CreateOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Datos inválidos"})
+		c.JSON(http.StatusBadRequest, utils.HandleValidationErrors(err))
 		return
 	}
 
@@ -114,7 +114,7 @@ func (h *OrderHandler) UpdateLocation(c *gin.Context) {
 
 	// 1. Validar que el JSON tenga lat y lng
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Coordenadas requeridas"})
+		c.JSON(http.StatusBadRequest, utils.HandleValidationErrors(err))
 		return
 	}
 
