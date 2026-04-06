@@ -25,7 +25,7 @@ Bash
 docker-compose up --build
 
 ## Documentación
-Una vez levantado el servicio, podés acceder a la interfaz de Swagger para probar los endpoints: http://localhost:8080/swagger/index.html#/
+Una vez levantado el servicio, podés acceder a la interfaz de Swagger para probar los endpoints: http://localhost:8081/swagger/index.html#/
 
 ## Seguridad
 Autenticación basada en JWT.
